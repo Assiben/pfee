@@ -1,0 +1,52 @@
+# ===========================
+# Source: tous les CSV
+# ===========================
+[sources.csv_files]
+type = "file"
+include = ["/data/**/*.csv"]
+ignore_older = 0
+fingerprint.strategy = "device_and_inode"
+
+# === Gestion des événements multi-lignes ===
+multiline.mode = "halt_before"
+# Commence un nouvel événement quand une ligne commence par "NetEco"
+multiline.pattern = "^NetEco"
+
+# ===========================
+# Transform: CSV -> JSON
+# ===========================
+[transforms.csv_to_json]
+type = "remap"
+inputs = ["csv_files"]
+source = '''
+# Regroupe toutes les lignes du bloc en une seule chaîne
+lines = split!(.message, "\n")
+
+# Crée un dictionnaire JSON par bloc
+. = {
+    "header": lines[0],
+    "rack_info": lines[1],
+    "value1": lines[2],
+    "value2": lines[3],
+    "system": lines[4],
+    "timestamp": lines[5]
+}
+'''
+
+# ===========================
+# Sink: Console pour debug
+# ===========================
+[sinks.console]
+type = "console"
+inputs = ["csv_to_json"]
+encoding.codec = "json"
+
+# ===========================
+# Sink: Kafka pour production
+# ===========================
+[sinks.kafka]
+type = "kafka"
+inputs = ["csv_to_json"]
+bootstrap_servers = "kafka:9092"
+topic = "rack-data"
+encoding.codec = "json"
